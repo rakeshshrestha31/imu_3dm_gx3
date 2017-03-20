@@ -14,15 +14,6 @@ using namespace std;
 
 #define REPLY_LENGTH 4
 
-// gets the precomputed 9 bit orientation matrix
-// #define GET_ORIENTATION_MATRIX
-
-#ifdef GET_ORIENTATION_MATRIX
-  #define DATA_LENGTH 79
-#else
-  #define DATA_LENGTH 43
-#endif
-
 boost::asio::serial_port* serial_port = 0;
 const char stop[3] = {'\xFA','\x75','\xB4'};
 char mode[4] = {'\xD4','\xA3','\x47','\x00'};
@@ -135,12 +126,16 @@ int main(int argc, char** argv)
   // Stop continous mode if it is running
   boost::asio::write(*serial_port, boost::asio::buffer(stop, 3));
   ROS_WARN("Wait 0.1s"); 
+  ROS_INFO("Starting continuous mode: Rakesh and Sicong");
   ros::Duration(0.1).sleep();
+  ROS_INFO("After sleep: Rakesh and Sicong");
   
   // Check the mode
   bool reInitFlag = false;
   boost::asio::write(*serial_port, boost::asio::buffer(mode, 4));
+  ROS_INFO("Write complete: Rakesh and Sicong");
   boost::asio::read(*serial_port, boost::asio::buffer(reply, REPLY_LENGTH));
+  ROS_INFO("Read complete: Rakesh and Sicong");
   
   if (!validate_checksum(reply, REPLY_LENGTH))
     {
@@ -149,7 +144,11 @@ int main(int argc, char** argv)
         serial_port->close();
       reInitFlag = true;
     }
-  
+  else
+    {
+      ROS_INFO("Successfully initialized: Rakesh and Sicong");
+    }
+
   if (reInitFlag)
   {
     ROS_WARN("In Re-Init");
@@ -205,54 +204,8 @@ int main(int argc, char** argv)
       ROS_INFO("Active mode set successfully: Rakesh and Sicong");
     }
 
-  // ------------------ Setting sampling rate start ----------------------------- //
-  // Read the sampling rate first
-  char set_sampling_rate[20] = {
-    0xDB, 0xA8, 0xB9, 
-    0x00, // don't change, just reply
-    0x00, 0x00, // decimation
-    0x00, 0x00, 0, 0, 0, 0, 0, 0, 
-    // Low Mag Power/Bandwidth
-    1, 
-    // reserved
-    0, 0, 0, 0, 0
-  };
-  unsigned char reply_sampling_rate[19];
-
-  boost::asio::write(*serial_port, boost::asio::buffer(set_sampling_rate, 20));
-  boost::asio::read(*serial_port, boost::asio::buffer(reply_sampling_rate, 19));
-
-  for (int i = 0; i < 19; i++) {
-    std::cout << std::hex << "0x" << (int)reply_sampling_rate[i] << ", ";
-  }
-  std::cout << std::endl;
-
-  // change the values, don't reply
-  set_sampling_rate[3] = 1; 
-  // Now just set the decimation, keeping everying else same
-  set_sampling_rate[4] = 0;
-  set_sampling_rate[5] = 5;
-  for (int i = 6; i < 14; i++) {
-    set_sampling_rate[i] = reply_sampling_rate[i - 3];
-  }
-  boost::asio::write(*serial_port, boost::asio::buffer(set_sampling_rate, 20));
-  boost::asio::read(*serial_port, boost::asio::buffer(reply_sampling_rate, 19));
-
-  for (int i = 0; i < 19; i++) {
-    std::cout << std::hex << "0x" << (int)reply_sampling_rate[i] << ", ";
-  }
-  std::cout << std::endl;
-  // ------------------ Setting sampling rate ends ----------------------------- //
-
   // Set the continous preset mode
-  const char preset[4] = {
-    '\xD6','\xC6','\x6B',
-#ifdef GET_ORIENTATION_MATRIX    
-    '\xCC'
-#else
-    '\xCB'
-#endif
-  };
+  const char preset[4] = {'\xD6','\xC6','\x6B','\xCC'};
   boost::asio::write(*serial_port, boost::asio::buffer(preset, 4));
 
   boost::asio::read(*serial_port, boost::asio::buffer(reply, REPLY_LENGTH));
@@ -263,7 +216,11 @@ int main(int argc, char** argv)
         serial_port->close();
       return -1;
     }
-  
+  else
+    {
+      ROS_INFO("Successfully set continuous mode: Rakesh and Sicong");
+    }
+
   // Set the mode to continous output
   mode[3] = '\x02';
   boost::asio::write(*serial_port, boost::asio::buffer(mode, 4));
@@ -275,7 +232,11 @@ int main(int argc, char** argv)
         serial_port->close();
       return -1;
     }
-  
+  else
+   {
+     ROS_INFO("Successfully set continuous output mode: Rakesh and Sicong");
+   }
+
   // Set Timer
   char set_timer[8] = {'\xD7','\xC1','\x29','\x01','\x00','\x00','\x00','\x00'};
   unsigned char reply_timer[7];
@@ -283,14 +244,24 @@ int main(int argc, char** argv)
 //  ros::Time t0 = ros::Time::now();  
   boost::asio::read(*serial_port, boost::asio::buffer(reply_timer, 7));
   
+  // Set sampling rate
+  char set_sampling_rate[20] = {
+    0xDB, 0xA8, 0xB9, 
+    0x00, // don't change, just reply
+    0x00, 0x00, // decimation
+    0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+   };
+   boost::asio::write(*serial_port, boost::asio::buffer(set_sampling_rate[, 8));
+   boost::asio::read(*serial_port, boost::asio::buffer(reply_timer, 7));
+  
+  unsigned char reply_sampling_rate[19];
   ros::Time t0 = ros::Time::now();  
 
   ROS_WARN("Streaming Data...");
-  unsigned short data_length = DATA_LENGTH;
+  unsigned short data_length = 79;
   unsigned char data[data_length];
   sensor_msgs::Imu msg;
   ros::Publisher pub = n.advertise<sensor_msgs::Imu>("imu", 100);
-
   while (n.ok())
     {
       boost::asio::read(*serial_port, boost::asio::buffer(data, data_length));
@@ -304,10 +275,7 @@ int main(int argc, char** argv)
       float acc[3];
       float ang_vel[3];
       float mag[3];
-#ifdef GET_ORIENTATION_MATRIX
       float M[9];
-#endif
-
       double T;
       for (unsigned int i = 0; i < 3; i++, k += 4)
         acc[i] = extract_float(&(data[k]));
@@ -315,12 +283,8 @@ int main(int argc, char** argv)
         ang_vel[i] = extract_float(&(data[k]));
       for (unsigned int i = 0; i < 3; i++, k += 4)
         mag[i] = extract_float(&(data[k]));
-
-#ifdef GET_ORIENTATION_MATRIX
       for (unsigned int i = 0; i < 9; i++, k += 4)
         M[i] = extract_float(&(data[k]));
-#endif
-
       T = extract_int(&(data[k])) / 62500.0;
 
       msg.header.stamp    = t0 + ros::Duration(T) - ros::Duration(delay);
@@ -331,16 +295,15 @@ int main(int argc, char** argv)
       msg.linear_acceleration.x = acc[0] * 9.81;
       msg.linear_acceleration.y = acc[1] * 9.81;
       msg.linear_acceleration.z = acc[2] * 9.81;
-      
+      // mat R(3,3);
+      // for (unsigned int i = 0; i < 3; i++)
+      //   for (unsigned int j = 0; j < 3; j++)
+      //     R(i,j) = M[j*3+i];
+      // colvec q = R_to_quaternion(R);
       Eigen::Matrix3d R;
-      
-#ifdef GET_ORIENTATION_MATRIX
       for (unsigned int i = 0; i < 3; i++)
         for (unsigned int j = 0; j < 3; j++)
           R(i,j) = M[j*3+i];
-#else
-      R.setIdentity();
-#endif
       Eigen::Quaternion<double> q(R);
       msg.orientation.w = (double)q.w();// q(0);
       msg.orientation.x = (double)q.x();// q(1);
