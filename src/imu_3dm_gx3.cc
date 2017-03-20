@@ -222,12 +222,7 @@ int main(int argc, char** argv)
   boost::asio::write(*serial_port, boost::asio::buffer(set_sampling_rate, 20));
   boost::asio::read(*serial_port, boost::asio::buffer(reply_sampling_rate, 19));
 
-  for (int i = 0; i < 19; i++) {
-    std::cout << std::hex << "0x" << (int)reply_sampling_rate[i] << ", ";
-  }
-  std::cout << std::endl;
-
-  // change the values, don't reply
+  // change the sampling rate now
   set_sampling_rate[3] = 1; 
   // Now just set the decimation, keeping everying else same
   set_sampling_rate[4] = 0;
@@ -238,10 +233,6 @@ int main(int argc, char** argv)
   boost::asio::write(*serial_port, boost::asio::buffer(set_sampling_rate, 20));
   boost::asio::read(*serial_port, boost::asio::buffer(reply_sampling_rate, 19));
 
-  for (int i = 0; i < 19; i++) {
-    std::cout << std::hex << "0x" << (int)reply_sampling_rate[i] << ", ";
-  }
-  std::cout << std::endl;
   // ------------------ Setting sampling rate ends ----------------------------- //
 
   // Set the continous preset mode
